@@ -21,9 +21,24 @@
         font-family: monospace;
         text-align: center;
       }
+      #volumeControl {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        color: #0f0;
+        font-family: monospace;
+        font-size: 14px;
+        z-index: 10;
+      }
+      input[type="range"] {
+        vertical-align: middle;
+      }
     </style>
   </head>
   <body>
+    <div id="volumeControl">
+      🔊 The Great Gig in the Sky: <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.8">
+    </div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -35,6 +50,19 @@
       // Áudios
       const shootSound = new Audio("shoot.wav");
       const invaderKilledSound = new Audio("invaderkilled.wav");
+      const bgMusic = new Audio("MOON8.wav");
+      bgMusic.loop = true;
+      bgMusic.volume = 0.8;
+
+      // Controle de volume
+      const volumeSlider = document.getElementById("volumeSlider");
+      volumeSlider.addEventListener("input", () => {
+        bgMusic.volume = volumeSlider.value;
+      });
+
+      window.onload = () => {
+        bgMusic.play();
+      };
 
       let gameState = "start"; // start, playing, gameover
       let score = 0;
@@ -99,10 +127,10 @@
 
         for (let r = 0; r < enemyRows; r++) {
           for (let c = 0; c < enemyCols; c++) {
-            const imgIndex = Math.floor(Math.random() * enemyImages.length); // imagem aleatória
+            const imgIndex = Math.floor(Math.random() * enemyImages.length);
             enemies.push({
               x: c * enemySpacing + 40,
-              y: r * 60 + 40, // espaçamento vertical aumentado de 40 para 60
+              y: r * 60 + 40,
               width: 40,
               height: 40,
               alive: true,
@@ -178,7 +206,6 @@
               player.bullets.splice(bi, 1);
               score += 100;
 
-              // Toca o som do inimigo morto
               invaderKilledSound.currentTime = 0;
               invaderKilledSound.play();
             }
@@ -276,8 +303,6 @@
               y: player.y,
             });
             player.lastShot = Date.now();
-
-            // Toca o som do disparo
             shootSound.currentTime = 0;
             shootSound.play();
           }
@@ -289,7 +314,6 @@
         if (e.key === "ArrowRight") keys.right = false;
       });
 
-      // O gameLoop é iniciado somente após as imagens carregarem
       function gameLoop() {
         draw();
         requestAnimationFrame(gameLoop);
