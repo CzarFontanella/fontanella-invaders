@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fontanella Invaders</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      canvas {
+        display: block;
+        margin: 0 auto;
+        background: black;
+      }
+      body {
+        background-color: #000;
+        color: #0f0;
+        font-family: monospace;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const ctx = canvas.getContext("2d");
+
+      // Áudios
+      const shootSound = new Audio("shoot.wav");
+      const invaderKilledSound = new Audio("invaderkilled.wav");
+
+      let gameState = "start"; // start, playing, gameover
+      let score = 0;
+      let highScore = localStorage.getItem("highScore") || 0;
+      highScore = Number(highScore);
+
+      const player = {
+        x: canvas.width / 2 - 20,
+        y: canvas.height - 60,
+        width: 40,
+        height: 20,
+        speed: 5,
+        bullets: [],
+        lastShot: 0,
+      };
+
+      const keys = {
+        left: false,
+        right: false,
+      };
+
+      const enemyRows = 4;
+      const enemyCols = Math.floor((canvas.width - 80) / 50);
+      const enemySpacing = 50;
+      let enemies = [];
+      let enemyDirection = 1;
+      let enemySpeed = 7;
+      let enemyMoveCounter = 0;
+      let enemyMoveDelay = 1;
+
+      // Imagens dos inimigos
+      const enemyImagesSrc = [
+        "cesinha.png",
+        "valentine.png",
+        "julia.png",
+        "flavio.png",
+        "papai.png",
+      ];
+      const enemyImages = [];
+      let imagesLoaded = 0;
+
+      enemyImagesSrc.forEach((src, i) => {
+        enemyImages[i] = new Image();
+        enemyImages[i].src = src;
+        enemyImages[i].onload = () => {
+          imagesLoaded++;
+          if (imagesLoaded === enemyImagesSrc.length) {
+            resetGame(); // Só inicia o jogo após carregar todas as imagens
+            gameLoop(); // Começa o loop do jogo após o reset
+          }
+        };
+      });
+
+      function resetGame() {
+        score = 0;
+        player.bullets = [];
+        player.x = canvas.width / 2 - 20;
+        enemies = [];
+        enemyDirection = 1;
+        enemySpeed = 1;
+        enemyMoveCounter = 0;
+
+        for (let r = 0; r < enemyRows; r++) {
+          for (let c = 0; c < enemyCols; c++) {
+            const imgIndex = Math.floor(Math.random() * enemyImages.length); // imagem aleatória
+            enemies.push({
+              x: c * enemySpacing + 40,
+              y: r * 60 + 40, // espaçamento vertical aumentado de 40 para 60
+              width: 40,
+              height: 40,
+              alive: true,
+              image: enemyImages[imgIndex],
+            });
+          }
+        }
+      }
+
+      function drawPlayer() {
+        ctx.fillStyle = "lime";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
+
+      function drawBullets() {
+        ctx.fillStyle = "white";
+        player.bullets.forEach((b, i) => {
+          b.y -= 7;
+          ctx.fillRect(b.x, b.y, 4, 10);
+          if (b.y < 0) player.bullets.splice(i, 1);
+        });
+      }
+
+      function drawEnemies() {
+        enemies.forEach((enemy) => {
+          if (enemy.alive && enemy.image.complete) {
+            ctx.drawImage(
+              enemy.image,
+              enemy.x,
+              enemy.y,
+              enemy.width,
+              enemy.height
+            );
+          }
+        });
+      }
+
+      function moveEnemies() {
+        enemyMoveCounter++;
+        if (enemyMoveCounter >= enemyMoveDelay) {
+          let shouldReverse = false;
+
+          enemies.forEach((e) => {
+            if (!e.alive) return;
+            e.x += enemyDirection * enemySpeed;
+            if (e.x <= 0 || e.x + e.width >= canvas.width) {
+              shouldReverse = true;
+            }
+          });
+
+          if (shouldReverse) {
+            enemyDirection *= -1;
+            enemies.forEach((e) => {
+              e.y += 20;
+            });
+          }
+
+          enemyMoveCounter = 0;
+        }
+      }
+
+      function checkCollisions() {
+        player.bullets.forEach((b, bi) => {
+          enemies.forEach((e, ei) => {
+            if (
+              e.alive &&
+              b.x < e.x + e.width &&
+              b.x + 4 > e.x &&
+              b.y < e.y + e.height &&
+              b.y + 10 > e.y
+            ) {
+              e.alive = false;
+              player.bullets.splice(bi, 1);
+              score += 100;
+
+              // Toca o som do inimigo morto
+              invaderKilledSound.currentTime = 0;
+              invaderKilledSound.play();
+            }
+          });
+        });
+      }
+
+      function update() {
+        checkCollisions();
+        moveEnemies();
+
+        if (enemies.every((e) => !e.alive)) {
+          gameState = "gameover";
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("highScore", highScore);
+          }
+        }
+
+        if (keys.left && player.x > 0) player.x -= player.speed;
+        if (keys.right && player.x < canvas.width - player.width)
+          player.x += player.speed;
+      }
+
+      function drawScore() {
+        ctx.fillStyle = "white";
+        ctx.font = "16px monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("Score: " + score, 20, 30);
+      }
+
+      function drawStartScreen() {
+        ctx.fillStyle = "lime";
+        ctx.font = "32px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("FONTANELLA INVADERS", canvas.width / 2, 200);
+        ctx.font = "18px monospace";
+        ctx.fillText("Press ENTER to Start", canvas.width / 2, 260);
+      }
+
+      function drawGameOverScreen() {
+        ctx.fillStyle = "red";
+        ctx.font = "28px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, 200);
+        ctx.fillStyle = "white";
+        ctx.font = "18px monospace";
+        ctx.fillText("Score: " + score, canvas.width / 2, 240);
+        ctx.fillText("High Score: " + highScore, canvas.width / 2, 270);
+        ctx.fillText("Press ENTER to Restart", canvas.width / 2, 320);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (gameState === "start") {
+          drawStartScreen();
+        } else if (gameState === "playing") {
+          drawPlayer();
+          drawBullets();
+          drawEnemies();
+          drawScore();
+          update();
+          enemies.forEach((e) => {
+            if (e.alive && e.y + e.height >= player.y) {
+              gameState = "gameover";
+              if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("highScore", highScore);
+              }
+            }
+          });
+        } else if (gameState === "gameover") {
+          drawGameOverScreen();
+        }
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (gameState === "start" && e.key === "Enter") {
+          resetGame();
+          gameState = "playing";
+        } else if (gameState === "gameover" && e.key === "Enter") {
+          resetGame();
+          gameState = "playing";
+        }
+
+        if (gameState === "playing") {
+          if (e.key === "ArrowLeft") keys.left = true;
+          if (e.key === "ArrowRight") keys.right = true;
+          if (
+            (e.key === " " || e.key === "Spacebar") &&
+            Date.now() - player.lastShot > 300
+          ) {
+            player.bullets.push({
+              x: player.x + player.width / 2 - 2,
+              y: player.y,
+            });
+            player.lastShot = Date.now();
+
+            // Toca o som do disparo
+            shootSound.currentTime = 0;
+            shootSound.play();
+          }
+        }
+      });
+
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft") keys.left = false;
+        if (e.key === "ArrowRight") keys.right = false;
+      });
+
+      // O gameLoop é iniciado somente após as imagens carregarem
+      function gameLoop() {
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+    </script>
+  </body>
+</html>
