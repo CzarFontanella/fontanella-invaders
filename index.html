@@ -37,7 +37,15 @@
   </head>
   <body>
     <div id="volumeControl">
-      🔊 The Great Gig in the Sky: <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.8">
+      🔊 The Great Gig in the Sky:
+      <input
+        type="range"
+        id="volumeSlider"
+        min="0"
+        max="1"
+        step="0.1"
+        value="0.8"
+      />
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -49,7 +57,9 @@
 
       // Áudios
       const shootSound = new Audio("shoot.wav");
+      shootSound.volume = 0.5;
       const invaderKilledSound = new Audio("invaderkilled.wav");
+      invaderKilledSound.volume = 0.5;
       const bgMusic = new Audio("MOON8.wav");
       bgMusic.loop = true;
       bgMusic.volume = 0.8;
@@ -60,9 +70,7 @@
         bgMusic.volume = volumeSlider.value;
       });
 
-      window.onload = () => {
-        bgMusic.play();
-      };
+      // REMOVIDO: document.addEventListener("load", ...)
 
       let gameState = "start"; // start, playing, gameover
       let score = 0;
@@ -89,7 +97,7 @@
       const enemySpacing = 50;
       let enemies = [];
       let enemyDirection = 1;
-      let enemySpeed = 7;
+      let enemySpeed = 9;
       let enemyMoveCounter = 0;
       let enemyMoveDelay = 1;
 
@@ -125,11 +133,15 @@
         enemySpeed = 1;
         enemyMoveCounter = 0;
 
+        const offsetAmount = 12; // valor do deslocamento horizontal
+
         for (let r = 0; r < enemyRows; r++) {
+          const rowOffset = (r % 2 === 0 ? -1 : 1) * offsetAmount;
+
           for (let c = 0; c < enemyCols; c++) {
             const imgIndex = Math.floor(Math.random() * enemyImages.length);
             enemies.push({
-              x: c * enemySpacing + 40,
+              x: c * enemySpacing + 40 + rowOffset,
               y: r * 60 + 40,
               width: 40,
               height: 40,
@@ -142,7 +154,12 @@
 
       function drawPlayer() {
         ctx.fillStyle = "lime";
-        ctx.fillRect(player.x, player.y, player.width, player.height);
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.width / 2, player.y); // topo (vértice)
+        ctx.lineTo(player.x, player.y + player.height); // canto inferior esquerdo
+        ctx.lineTo(player.x + player.width, player.y + player.height); // canto inferior direito
+        ctx.closePath();
+        ctx.fill();
       }
 
       function drawBullets() {
@@ -231,10 +248,10 @@
       }
 
       function drawScore() {
-        ctx.fillStyle = "white";
+        ctx.fillStyle = "#0f0";
         ctx.font = "16px monospace";
         ctx.textAlign = "left";
-        ctx.fillText("Score: " + score, 20, 30);
+        ctx.fillText("Score: " + score + "\nHigh-Score: " + highScore, 20, 30);
       }
 
       function drawStartScreen() {
@@ -284,6 +301,13 @@
 
       document.addEventListener("keydown", (e) => {
         if (gameState === "start" && e.key === "Enter") {
+          // ✅ Reproduz música após interação
+          bgMusic
+            .play()
+            .catch((err) =>
+              console.warn("Música bloqueada até interação do usuário.", err)
+            );
+
           resetGame();
           gameState = "playing";
         } else if (gameState === "gameover" && e.key === "Enter") {
